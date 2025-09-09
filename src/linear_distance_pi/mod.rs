@@ -14,6 +14,10 @@ pub struct Args {
 	#[arg(short, long, default_value_t = 4)]
   pub pow: usize,
 
+  /// Precision (decimal places) to use
+	#[arg(short, long, default_value_t = 32)]
+  pub prec: usize,
+
   /// Enable silent mode
   #[arg(short, long)]
   pub silent: bool,
