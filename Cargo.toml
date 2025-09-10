@@ -3,6 +3,9 @@ name = "LinearDistancePi"
 version = "0.0.1"
 edition = "2021"
 
+# [dependencies.malachite]
+# version = "0.6.1"
+
 [dependencies]
 clap = { version = "4.5.42", features = ["derive"] }
 indicatif = "0.18"
@@ -12,4 +15,5 @@ rayon = "1.10"
 ctrlc = "3.4"
 rand = "0.9.2"
 crossbeam = "0.8"
+malachite-base = "0.6.1"
 malachite = "0.6.1"

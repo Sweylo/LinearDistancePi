@@ -16,7 +16,7 @@ pub struct Args {
 
   /// Precision (decimal places) to use
 	#[arg(short, long, default_value_t = 32)]
-  pub prec: usize,
+  pub prec: u64,
 
   /// Enable silent mode
   #[arg(short, long)]
