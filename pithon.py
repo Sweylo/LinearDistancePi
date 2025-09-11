@@ -99,7 +99,7 @@ class LinearDistance(PiEstimator):
 		# getcontext().prec -= 2
 		# pow = 30
 		n_dec = self.get_n_dec(n, pow)
-		i = Decimal(0)
+		# i = Decimal(0)
 		for i in tqdm(range(int(self.circle.radius) * n)):
 			x2 = (Decimal(i) + Decimal(1)) / n_dec
 			y2 = self.circle.f(x2)
