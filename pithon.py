@@ -5,6 +5,8 @@ from decimal import Decimal, getcontext
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+from complex_decimal import ComplexDecimal
+
 
 class Circle:
 
@@ -47,72 +49,44 @@ class LinearDistance(PiEstimator):
 	def __init__(self, radius:Decimal = None, circle:Circle = None):
 		super().__init__(radius, circle)
 
-	def get_n_dec(self, n:int, pow:int) -> Decimal:
+	def get_n_dec(self, n:int, pow:int, prec:int) -> Decimal:
 		if pow <= 3:
 			raise ValueError("pow must be greater than 3")
 		else:
 			pow -= 2
+		getcontext().prec = prec + 2
 		n_dec = Decimal(n)
 		cos_expansion = Decimal(2).sqrt()
-		getcontext().prec += 2
-		for _ in range(pow - 1):
+		# getcontext().prec *= 6
+		# getcontext().prec = pow + prec
+		for i in tqdm(range(pow - 1)):
+			# getcontext().prec = prec_mod
+			# print(getcontext().prec)
+			# prec_mod -= 1
 			cos_expansion = (Decimal(2) + cos_expansion).sqrt()
+			# getcontext().prec -= prec_mod
+		# getcontext().prec = prec + 2
 		n_dec = n_dec / (Decimal(0.5) * (Decimal(2) - cos_expansion).sqrt())
-		getcontext().prec -= 2
+		getcontext().prec = prec
+		# getcontext().prec = int(getcontext().prec / 6)
 		return n_dec
 
 
-	def estimate(self, n:int, pow:int) -> Decimal:
-		getcontext().prec += 2
+	def estimate(self, n:int, pow:int, prec:int) -> Decimal:
+		getcontext().prec = prec + 2
 		arclen = Decimal(0.0)
 		x1 = Decimal(0.0)
 		y1 = self.circle.f(x1)
-		# getcontext().prec += 2
-		# n_dec = Decimal(n)
-		# n_dec = Decimal(n) * Decimal(2)
-		# n_dec = Decimal(n) * (Decimal(4) / (Decimal(-1) + Decimal(5).sqrt()))
-		# n_dec = Decimal(n) * (Decimal(2) * Decimal(2).sqrt()) / (Decimal(-1) + Decimal(3).sqrt())
-		# n_dec = Decimal(n) / (Decimal(0.5) * (Decimal(2) - (Decimal(2) + Decimal(2).sqrt()).sqrt()).sqrt())
-		# n_dec = Decimal(n) / (
-		# 	Decimal(0.5) * (
-		# 		Decimal(2) - (
-		# 			Decimal(2) + (
-		# 				Decimal(2) + (
-		# 					Decimal(2) + (
-		# 						Decimal(2) + (
-		# 							Decimal(2) + (
-		# 								Decimal(2) + (
-		# 									Decimal(2) + (
-		# 										Decimal(2) + (
-		# 											Decimal(2)
-		# 										).sqrt()
-		# 									).sqrt()
-		# 								).sqrt()
-		# 							).sqrt()
-		# 						).sqrt()
-		# 					).sqrt()
-		# 				).sqrt()
-		# 			).sqrt()
-		# 		).sqrt()
-		# 	).sqrt()
-		# )
-		# getcontext().prec -= 2
-		# pow = 30
-		n_dec = self.get_n_dec(n, pow)
-		# i = Decimal(0)
+		n_dec = self.get_n_dec(n, pow, prec)
+		getcontext().prec = prec + 2
 		for i in tqdm(range(int(self.circle.radius) * n)):
 			x2 = (Decimal(i) + Decimal(1)) / n_dec
 			y2 = self.circle.f(x2)
 			arclen += LinearDistance.pythag(x2 - x1, y2 - y1)
 			x1 = x2
 			y1 = y2
-		# pi = Decimal(2) * arclen / self.circle.radius
-		# pi = Decimal(6) * arclen / self.circle.radius
-		# pi = Decimal(10) * arclen / self.circle.radius
-		# pi = Decimal(12) * arclen / self.circle.radius
-		# pi = Decimal(16) * arclen / self.circle.radius
 		pi = Decimal(2).__pow__(Decimal(pow)) * arclen / self.circle.radius
-		getcontext().prec -= 2
+		getcontext().prec = prec
 		return +pi
 	
 	def graph_estimate(self, n:int):
@@ -234,6 +208,66 @@ class Nilakantha(PiEstimator):
 		return +pi  # unary plus applies the precision
 
 
+class Ramanujan(PiEstimator):
+
+	def __init__(self, radius:Decimal = None, circle:Circle = None):
+		super().__init__(radius, circle)
+		
+	def estimate(self, n:int) -> Decimal:
+		getcontext().prec += 2
+		factorial_4n = Decimal(1)
+		factorial_n = Decimal(1)
+		sqrt_2 = Decimal(2).sqrt()
+		sum = Decimal(0)
+		for k in tqdm(range(n)):
+			if k > 0:
+				for i in range(4 * k - 3, 4 * k + 1):
+					factorial_4n *= Decimal(i)
+				for i in range(k):
+					factorial_n *= Decimal(i + 1)
+			numerator = factorial_4n * (Decimal(1103) + Decimal(26390) * Decimal(k))
+			denominator = (factorial_n**4) * (Decimal(396)**(4 * k))
+			sum += numerator / denominator
+		pi = (Decimal(9801) * sqrt_2) / (sum * Decimal(4270934400))
+		getcontext().prec -= 2
+		return +pi  # unary plus applies the precision
+	
+class Polygonal(PiEstimator):
+
+	def __init__(self, radius:Decimal = None, circle:Circle = None):
+		super().__init__(radius, circle)
+
+	def estimate(self, iterations, prec):
+		# iterations = number of doublings (m)
+		# prec = decimal precision in digits
+		getcontext().prec = prec
+
+		# start with regular hexagon inscribed in unit circle:
+		# side length for n=6 is 1.0 (for unit circle, chord length between pi/3 points equals 1),
+		# but easier: use apothem a6 = cos(pi/6) = sqrt(3)/2 and side s6 = 1.0
+		# We'll track half-side t = sin(pi/n) or the full side depending on recurrence.
+		# Use recurrence for half-chord (h = sin(pi/n)) via half-angle:
+		# h_{2n} = sqrt((1 - sqrt(1 - h_n^2))/2)  (derivable using cos->sin relations)
+		D = Decimal
+		# start with sin(pi/6) = 1/2 (exact)
+		h = D(1) / D(2)   # h = sin(pi/6)
+
+		# after each doubling, n -> 2n and h -> sin(pi/(2n)) via half-angle
+		for _ in range(iterations):
+			# cos(theta) = sqrt(1 - sin^2(theta))
+			cos_theta = (1 - h*h).sqrt()
+			# sin(theta/2) = sqrt((1 - cos_theta)/2)
+			h = ((1 - cos_theta) / 2).sqrt()
+
+		# after m doublings, we have h = sin(pi / (6 * 2^m))
+		n = 6 * (2**iterations)
+		# side length s = 2 * sin(pi/n) = 2*h
+		side = D(2) * h
+		# perimeter P = n * s
+		pi = D(n) * side / D(2)
+		# For unit circle, circumference approximated by P
+		return +pi  # unary + applies current precision
+
 
 if __name__ == "__main__":
 
@@ -259,6 +293,8 @@ if __name__ == "__main__":
 	else:
 		precision = 32
 
+	getcontext().prec = precision
+
 	if args.radius is not None:
 		radius = Decimal(args.radius)
 		circle = Circle(radius=radius, precision=precision)
@@ -267,7 +303,7 @@ if __name__ == "__main__":
 		circle = Circle(radius=radius, precision=precision)
 
 	if args.pow is not None:
-		pow = int(args.pow)
+		pow = int(args.pow) + 3
 	else:
 		pow = 4
 
@@ -298,27 +334,34 @@ if __name__ == "__main__":
 			print(f'Estimating π with Trapezoidal Area method where n = {n}')
 			ta_pi = TrapezoidalArea(circle=circle).estimate(n)
 			print(f'Estimating π with Linear Distance method where n = {n}')
-			ld_pi = LinearDistance(circle=circle).estimate(n, pow)
+			ld_pi = LinearDistance(circle=circle).estimate(n, pow, precision)
+			print(f'Estimating π with Polygonal method where n = {n}')
+			pg_pi = Polygonal(circle=circle).estimate(n, precision)
 			print(f'Estimating π with Wallis Product method where n = {n}')
 			wp_pi = WallisProduct(circle=circle).estimate(n)
 			print(f'Estimating π with Newton-Leibniz method where n = {n}')
 			nl_pi = NewtonLeibniz(circle=circle).estimate(n)
 			print(f'Estimating π with Nilakantha method where n = {n}')
 			nk_pi = Nilakantha(circle=circle).estimate(n)
+			# print(f'Estimating π with Ramanujan method where n = {n}')
+			# rk_pi = Ramanujan(circle=circle).estimate(n)
 
 			print(f'Monte Carlo Area:   {mc_pi:.{precision}f}   error: {Decimal(100.0) * abs(mc_pi - pi) / pi:.{precision - 2}f} %')
 			print(f'Rectangular Area:   {ra_pi:.{precision}f}   error: {Decimal(100.0) * abs(ra_pi - pi) / pi:.{precision - 2}f} %')
 			print(f'Trapezoidal Area:   {ta_pi:.{precision}f}   error: {Decimal(100.0) * abs(ta_pi - pi) / pi:.{precision - 2}f} %')
 			print(f'Linear Distance:    {ld_pi:.{precision}f}   error: {Decimal(100.0) * abs(ld_pi - pi) / pi:.{precision - 2}f} %')
+			print(f'Polygonal:          {pg_pi:.{precision}f}   error: {Decimal(100.0) * abs(pg_pi - pi) / pi:.{precision - 2}f} %')
 			print(f'Wallis Product:     {wp_pi:.{precision}f}   error: {Decimal(100.0) * abs(wp_pi - pi) / pi:.{precision - 2}f} %')
 			print(f'Newton-Leibniz:     {nl_pi:.{precision}f}   error: {Decimal(100.0) * abs(nl_pi - pi) / pi:.{precision - 2}f} %')
 			print(f'Nilakantha:         {nk_pi:.{precision}f}   error: {Decimal(100.0) * abs(nk_pi - pi) / pi:.{precision - 2}f} %')
+			# print(f'Ramanujan:          {rk_pi:.{precision}f}   error: {Decimal(100.0) * abs(rk_pi - pi) / pi:.{precision - 2}f} %')
 
 		else:
 
 			print(f'Estimating π with Linear Distance method where n = {n}')
-			ld_pi = LinearDistance(circle=circle).estimate(n, pow)
-			print(f'Linear Distance:    {ld_pi:.{precision}f}   \nerror: {Decimal(100.0) * abs(ld_pi - pi) / pi:.{precision - 2}f} %')
+			ld_pi = LinearDistance(circle=circle).estimate(n, pow, precision)
+			# print(f'Linear Distance:    {ld_pi:.{precision}f}   \nerror: {Decimal(100.0) * abs(ld_pi - pi) / pi:.{precision - 2}f} %')
+			print(f'Estimated Pi: {ld_pi}')
 
 	else:
 
